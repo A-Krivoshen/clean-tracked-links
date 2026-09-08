@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const guard = require('../assets/editor.js');
+const guard = require('../assets/url-guard.js');
 
 let failed = 0;
 let passed = 0;

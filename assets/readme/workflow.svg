@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="220" viewBox="0 0 1200 220" role="img" aria-labelledby="title desc">
+  <title id="title">Как пользоваться Clean Tracked Links</title>
+  <desc id="desc">Четыре шага: клик по ссылке в тексте, открывается панель, нажать «На оригинал», в href уже исходный URL.</desc>
+
+  <rect width="1200" height="220" rx="26" fill="#f6f7f7"/>
+  <rect x="1" y="1" width="1198" height="218" rx="25" fill="none" stroke="#dcdcde"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <g transform="translate(40 36)">
+      <rect width="250" height="148" rx="12" fill="#ffffff" stroke="#dcdcde"/>
+      <text x="24" y="42" fill="#2271b1" font-size="28" font-weight="700">1</text>
+      <text x="24" y="84" fill="#1e1e1e" font-size="22" font-weight="600">Клик по ссылке</text>
+      <text x="24" y="114" fill="#646970" font-size="18">в тексте Gutenberg</text>
+    </g>
+    <path d="M300 110h28" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/>
+    <path d="M322 104l8 6-8 6" fill="none" stroke="#2271b1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(340 36)">
+      <rect width="250" height="148" rx="12" fill="#ffffff" stroke="#dcdcde"/>
+      <text x="24" y="42" fill="#2271b1" font-size="28" font-weight="700">2</text>
+      <text x="24" y="84" fill="#1e1e1e" font-size="22" font-weight="600">Панель ссылки</text>
+      <text x="24" y="114" fill="#646970" font-size="18">карандаш, открыть, копия</text>
+    </g>
+    <path d="M600 110h28" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/>
+    <path d="M622 104l8 6-8 6" fill="none" stroke="#2271b1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(640 36)">
+      <rect width="250" height="148" rx="12" fill="#ffffff" stroke="#2271b1"/>
+      <text x="24" y="42" fill="#2271b1" font-size="28" font-weight="700">3</text>
+      <text x="24" y="84" fill="#1e1e1e" font-size="22" font-weight="600">«На оригинал»</text>
+      <text x="24" y="114" fill="#646970" font-size="18">четвёртая кнопка ↔</text>
+    </g>
+    <path d="M900 110h28" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/>
+    <path d="M922 104l8 6-8 6" fill="none" stroke="#2271b1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(940 36)">
+      <rect width="220" height="148" rx="12" fill="#1e1e1e"/>
+      <text x="24" y="42" fill="#1ed14b" font-size="28" font-weight="700">4</text>
+      <text x="24" y="84" fill="#ffffff" font-size="22" font-weight="600">Чистый URL</text>
+      <text x="24" y="114" fill="#a7aaad" font-size="18">href уже исходный</text>
+    </g>
+  </g>
+</svg>

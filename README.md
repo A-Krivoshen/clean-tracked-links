@@ -1,82 +1,60 @@
-# Clean Tracked Links
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="Clean Tracked Links: в панели ссылки Gutenberg кнопка «На оригинал» подставляет исходный URL. Пример: klerk.ru/go/ext/?to=https%3A%2F%2Fvedomosti… становится vedomosti.ru/business/articles/…">
+</p>
 
-WordPress-плагин для редактора Gutenberg: в панели уже существующей ссылки появляется кнопка **«На оригинал»**. Она подставляет исходный URL вместо трекинговой или редиректной обёртки. Текст анкора не меняется.
+WordPress-плагин для редактора. Кнопка **не из ядра WordPress** — плагин сам добавляет её в popover уже существующей ссылки.
 
-Это **не** системная кнопка ядра WordPress. Плагин сам встраивает её в popover ссылки.
+<p align="center">
+  <img src="./assets/readme/workflow.svg" width="100%" alt="Четыре шага: клик по ссылке, панель, кнопка На оригинал, в href уже исходный URL">
+</p>
 
-**Версия:** 1.0.0 · **WP:** 6.4+ · **PHP:** 8.1+ · без npm и без сборки.
+## Пример
 
-## Что делает
-
-В маленькой панельке ссылки (заголовок, URL, карандаш / открыть / копировать) добавляется четвёртая кнопка со стрелками ↔.
-
-По клику плагин берёт текущий `href`, разворачивает обёртку и записывает целевой URL обратно в ту же ссылку.
+Нажал — обёртка стала обычной ссылкой. Текст анкора тот же.
 
 | Было | Стало |
 | --- | --- |
-| `https://www.klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2F…&entityId=123` | `https://www.vedomosti.ru/business/articles/…` |
+| `https://www.klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2Fbusiness%2Farticles%2F2026%2F07%2F06%2F1211353-nedorogoi-ikri-mozhet-stat-menshe&entityId=123` | `https://www.vedomosti.ru/business/articles/2026/07/06/1211353-nedorogoi-ikri-mozhet-stat-menshe` |
 | `https://example.com/news/hello?utm_source=tg&yclid=123` | `https://example.com/news/hello` |
-| обычная `https://example.com/news/hello` | без изменения |
+| `https://example.com/news/hello` | без изменения |
 
-Если развернуть нельзя — ссылка не трогается. Повторный клик по уже чистой ссылке её не портит.
-
-## Это не
-
-- не автозамена ссылок на сайте у посетителей
-- не массовая чистка старых постов
-- не страница настроек
-- не новый блок Gutenberg
+Если развернуть нельзя, href не трогается. Повторный клик по чистой ссылке её не портит.
 
 ## Установка
 
 1. Скачайте ZIP: [Code → Download ZIP](https://github.com/A-Krivoshen/clean-tracked-links/archive/refs/heads/main.zip).
-2. Распакуйте папку в `/wp-content/plugins/clean-tracked-links/`.
-3. В админке WordPress: **Плагины → активировать Clean Tracked Links**.
-4. Откройте запись в Gutenberg, кликните по ссылке и нажмите кнопку со стрелками.
-
-Главный файл должен лежать так:
+2. Положите папку в `/wp-content/plugins/clean-tracked-links/`.
+3. Плагины → активировать **Clean Tracked Links**.
+4. В Gutenberg кликните по ссылке и нажмите ↔ **«На оригинал»**.
+5. Если Gutenberg нет — та же кнопка есть в классическом редакторе (тулбар и окно «Вставить/редактировать ссылку») и во встроенных WYSIWYG на произвольных полях (ACF и другие `wp_editor()`).
 
 ```text
 wp-content/plugins/clean-tracked-links/clean-tracked-links.php
 ```
 
-## Как пользоваться
+Нужны WordPress 6.4+, PHP 8.1+. Сборки и npm нет.
 
-1. Кликните по ссылке в тексте.
-2. В popover нажмите **«На оригинал»**.
-3. Пока идёт запрос, кнопка disabled и показывает «Разворачиваю…».
-4. Успех — snackbar «Готово», в ссылке уже исходный URL.
-5. Если ссылка и так обычная — «Уже обычная ссылка».
-6. Если исходный URL не найден — «Не удалось найти исходную ссылку», href не меняется.
+Пока запрос идёт, кнопка disabled и показывает «Разворачиваю…». Успех — «Готово». Уже чистая ссылка — «Уже обычная ссылка». Иначе — «Не удалось найти исходную ссылку».
 
 ## Как разворачивает
 
-Логика на PHP, маршрут `POST /wp-json/clean-tracked-links/v1/unwrap` (право `edit_posts`).
+Логика на сервере: `POST /wp-json/clean-tracked-links/v1/unwrap` (право `edit_posts`). JS сам только быстро достаёт `to` / `url` / `target`.
 
-1. Параметры цели по очереди: `to`, `url`, `target`, `u`, `dest`, `destination`, `redirect`, `redirect_url`, `link`. Значение urldecode, вложенные обёртки — до 3 раз.
-2. Если параметра нет, но URL похож на промежуточный редирект — один безопасный HTTP-запрос без тела страницы (HEAD, иначе ограниченный GET), берётся `Location`. Максимум 3 редиректа, таймаут 5 секунд.
-3. У уже почти чистого URL срезаются только служебные метки: `utm_*`, `yclid`, `ysclid`, `gclid`, `fbclid`, `_openstat`, `from`, `eref`, `ref`, `ref_src`. Параметры вроде `id`, `article`, `slug`, `page` не трогаются.
+1. Параметры цели по очереди: `to`, `url`, `target`, `u`, `dest`, `destination`, `redirect`, `redirect_url`, `link`. Декодирует, вложенные обёртки — до 3 раз.
+2. Если параметра нет, но URL похож на промежуточный редирект — HEAD (иначе ограниченный GET), без тела страницы, берётся `Location`. Максимум 3 редиректа, 5 секунд.
+3. У почти чистого URL срезаются только служебные метки: `utm_*`, `yclid`, `ysclid`, `gclid`, `fbclid`, `_openstat`, `from`, `eref`, `ref`, `ref_src`. `id`, `article`, `slug`, `page` не трогаются.
 
-Принимаются только `http`/`https`. Localhost, private/reserved и link-local IP не резолвятся. Результат проходит через `wp_http_validate_url` и `esc_url_raw`.
+Только `http`/`https`. Localhost, private/reserved, link-local и metadata-хосты не резолвятся. Результат проходит `wp_http_validate_url` и `esc_url_raw`.
 
-## Файлы
+## Это не
 
-```text
-clean-tracked-links.php
-readme.txt
-includes/class-unwrapper.php
-includes/class-rest.php
-assets/editor.js
-assets/editor.css
-```
+- не автозамена ссылок у посетителей сайта
+- не массовая чистка старых постов
+- не страница настроек и не новый блок
 
 ## Разработка
 
-ИП Кривошеин А.С.
-
-- Сайт: [krivoshein.site](https://krivoshein.site)
-- [Отзывы](https://yandex.ru/maps/org/ip_krivoshein_aleksey_sergeyevich/100156734340/reviews/)
-- По вопросам: [aleskey@krivoshein.site](mailto:aleskey@krivoshein.site)
+ИП Кривошеин А.С. · [krivoshein.site](https://krivoshein.site) · [Отзывы](https://yandex.ru/maps/org/ip_krivoshein_aleksey_sergeyevich/100156734340/reviews/) · [aleskey@krivoshein.site](mailto:aleskey@krivoshein.site)
 
 ## License
 

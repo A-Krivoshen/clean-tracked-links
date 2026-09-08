@@ -1,0 +1,52 @@
+.mce-i-clean_tracked_links {
+	background: transparent !important;
+}
+
+.mce-i-clean_tracked_links:before {
+	content: '';
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	vertical-align: middle;
+	background-color: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 8L3 12l4 4v-3h4v-2H7V8zm10 0v3h-4v2h4v3l4-4-4-4z'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 8L3 12l4 4v-3h4v-2H7V8zm10 0v3h-4v2h4v3l4-4-4-4z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.ctl-classic-unwrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+
+.ctl-classic-unwrap svg {
+	width: 20px;
+	height: 20px;
+	fill: currentColor;
+}
+
+.mce-widget.mce-btn.ctl-classic-unwrap {
+	display: inline-block;
+	vertical-align: top;
+}
+
+.mce-widget.mce-btn.ctl-classic-unwrap button {
+	padding: 2px 4px;
+	line-height: 1;
+}
+
+.mce-widget.mce-btn.ctl-classic-unwrap .ctl-classic-unwrap__text {
+	display: none;
+}
+
+#wp-link .ctl-wplink-unwrap {
+	margin-top: 8px;
+}
+
+#wp-link .ctl-wplink-status {
+	display: inline-block;
+	margin-left: 8px;
+	color: #646970;
+	font-size: 13px;
+}
