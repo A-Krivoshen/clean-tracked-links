@@ -27,7 +27,7 @@ final class Rest
                 'methods'             => 'POST',
                 'callback'            => [ $this, 'handle' ],
                 'permission_callback' => static function (): bool {
-                    return current_user_can('edit_posts');
+                    return current_user_can('edit_posts') || current_user_can('edit_pages');
                 },
                 'args'                => [
                     'url' => [

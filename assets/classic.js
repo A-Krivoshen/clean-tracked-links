@@ -6,13 +6,19 @@
 	}
 	root.cleanTrackedLinksClassicLoaded = true;
 
-	var settings = root.cleanTrackedLinksSettings || {};
-	var i18n = settings.i18n || {};
-	var guard = root.cleanTrackedLinksUrlGuard;
 	var busy = false;
 	var BTN_CLASS = 'ctl-classic-unwrap';
 
+	function getSettings() {
+		return root.cleanTrackedLinksSettings || {};
+	}
+
+	function getGuard() {
+		return root.cleanTrackedLinksUrlGuard;
+	}
+
 	function t(key, fallback) {
+		var i18n = getSettings().i18n || {};
 		return i18n[key] || fallback;
 	}
 
@@ -25,12 +31,17 @@
 	}
 
 	function unwrapUrl(url) {
+		var settings = getSettings();
+		var guard = getGuard();
 		var quick = guard && guard.quickUnwrap ? guard.quickUnwrap(url) : null;
 		if (quick && quick !== url) {
 			return Promise.resolve({ ok: true, original: quick, changed: true });
 		}
 
 		var restUrl = settings.restUrl || '';
+		if (!restUrl && root.wpApiSettings && root.wpApiSettings.root) {
+			restUrl = String(root.wpApiSettings.root).replace(/\/?$/, '/') + 'clean-tracked-links/v1/unwrap';
+		}
 		var nonce = settings.nonce || (root.wpApiSettings && root.wpApiSettings.nonce) || '';
 		if (!restUrl) {
 			return Promise.reject(new Error('rest url missing'));
@@ -45,6 +56,9 @@
 			},
 			body: JSON.stringify({ url: url }),
 		}).then(function (res) {
+			if (!res.ok) {
+				throw new Error('http ' + res.status);
+			}
 			return res.json();
 		});
 	}
@@ -103,6 +117,7 @@
 					tinymceNotify(editor, 'info', t('already', 'Уже обычная ссылка'));
 					return;
 				}
+				var guard = getGuard();
 				if (guard && !guard.isHttpUrl(result.original)) {
 					tinymceNotify(editor, 'warning', t('fail', 'Не удалось найти исходную ссылку'));
 					return;
@@ -140,6 +155,47 @@
 		}
 	}
 
+	function unwrapActiveEditor(editor) {
+		var node = getLinkNode(editor);
+		if (!node) {
+			tinymceNotify(editor, 'warning', t('fail', 'Не удалось найти исходную ссылку'));
+			return;
+		}
+		runUnwrap(
+			node.getAttribute('href'),
+			function (original) {
+				applyToAnchor(editor, node, original);
+			},
+			editor
+		);
+	}
+
+	function attachEditor(editor) {
+		if (!editor || editor._ctlAttached) {
+			return;
+		}
+		editor._ctlAttached = true;
+		editor.addCommand('CTL_Unwrap', function () {
+			unwrapActiveEditor(editor);
+		});
+		editor.addButton('clean_tracked_links', {
+			title: t('tooltip', 'Подставить исходную ссылку вместо прослеживаемой'),
+			icon: 'clean_tracked_links',
+			cmd: 'CTL_Unwrap',
+			stateSelector: 'a[href]',
+			onPostRender: function () {
+				var ctrl = this;
+				function sync() {
+					if (typeof ctrl.disabled === 'function') {
+						ctrl.disabled(!getLinkNode(editor));
+					}
+				}
+				sync();
+				editor.on('NodeChange', sync);
+			},
+		});
+	}
+
 	function registerTinyMcePlugin() {
 		if (!root.tinymce || !root.tinymce.PluginManager) {
 			return;
@@ -149,32 +205,14 @@
 		}
 
 		root.tinymce.PluginManager.add('clean_tracked_links', function (editor) {
-			editor.addCommand('CTL_Unwrap', function () {
-				var node = getLinkNode(editor);
-				if (!node) {
-					tinymceNotify(editor, 'warning', t('fail', 'Не удалось найти исходную ссылку'));
-					return;
-				}
-				runUnwrap(node.getAttribute('href'), function (original) {
-					applyToAnchor(editor, node, original);
-				}, editor);
-			});
-
-			editor.addButton('clean_tracked_links', {
-				title: t('tooltip', 'Подставить исходную ссылку вместо прослеживаемой'),
-				icon: 'clean_tracked_links',
-				cmd: 'CTL_Unwrap',
-				onPostRender: function () {
-					var ctrl = this;
-					editor.on('NodeChange', function () {
-						if (ctrl.disabled) {
-							ctrl.disabled(!getLinkNode(editor));
-						}
-					});
-				},
-			});
+			attachEditor(editor);
 		});
 	}
+
+	root.cleanTrackedLinksClassic = {
+		attachEditor: attachEditor,
+		unwrapActive: unwrapActiveEditor,
+	};
 
 	function makeButton(extraClass) {
 		var btn = document.createElement('button');
@@ -182,7 +220,11 @@
 		btn.className = BTN_CLASS + (extraClass ? ' ' + extraClass : '');
 		btn.setAttribute('aria-label', t('label', 'На оригинал'));
 		btn.title = t('tooltip', 'Подставить исходную ссылку вместо прослеживаемой');
-		btn.innerHTML = svgIcon() + '<span class="ctl-classic-unwrap__text">' + t('label', 'На оригинал') + '</span>';
+		btn.innerHTML = svgIcon();
+		var label = document.createElement('span');
+		label.className = 'ctl-classic-unwrap__text';
+		label.textContent = t('label', 'На оригинал');
+		btn.appendChild(label);
 		return btn;
 	}
 
@@ -277,9 +319,46 @@
 		}
 	}
 
+	function injectInlineEditInput() {
+		var boxes = document.querySelectorAll('.wp-link-input');
+		for (var i = 0; i < boxes.length; i++) {
+			var box = boxes[i];
+			if (box.querySelector('.' + BTN_CLASS)) {
+				continue;
+			}
+			var input = box.querySelector('input[type="text"]');
+			if (!input) {
+				continue;
+			}
+			var btn = makeButton('ctl-wplink-inline');
+			btn.addEventListener('mousedown', function (event) {
+				event.preventDefault();
+			});
+			btn.addEventListener(
+				'click',
+				(function (urlInput) {
+					return function (event) {
+						event.preventDefault();
+						event.stopPropagation();
+						var editor = root.tinymce && root.tinymce.activeEditor;
+						runUnwrap(
+							urlInput.value,
+							function (original) {
+								urlInput.value = original;
+							},
+							editor
+						);
+					};
+				})(input)
+			);
+			box.appendChild(btn);
+		}
+	}
+
 	function scan() {
 		injectWpLinkModal();
 		injectInlineToolbar();
+		injectInlineEditInput();
 	}
 
 	registerTinyMcePlugin();

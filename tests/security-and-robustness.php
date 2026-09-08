@@ -191,6 +191,12 @@ $http = new Unwrapper(redirect_client([
 $ar = $http->unwrap($short);
 expect('shortener host follows redirect', ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://example.com/news/hello', dump($ar));
 
+$http = new Unwrapper(redirect_client([
+    'https://bit.ly/abc' => [ 'code' => 301, 'location' => 'https://example.com/news/hello' ],
+]));
+$ar = $http->unwrap('https://bit.ly/abc?utm_source=tg');
+expect('shortener still follows after utm strip', ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://example.com/news/hello', dump($ar));
+
 $rel = 'https://go.example/redirect';
 $http = new Unwrapper(redirect_client([
     $rel => [ 'code' => 302, 'location' => '/news/hello' ],
@@ -355,6 +361,58 @@ expect('blocked host never fetched', $unexpected === [] && empty($ar['ok']), dum
 
 $ar = $plain->unwrap('https://example.com/go/?to=https://news.example/ok&to[1]=http://127.0.0.1/');
 expect('array to[] does not smuggle loopback', empty($ar['ok']) || ! str_contains((string) ($ar['original'] ?? ''), '127.0.0.1'), dump($ar));
+
+foreach ([
+    'u'            => 'u',
+    'dest'         => 'd',
+    'destination'  => 'n',
+    'redirect'     => 'r',
+    'redirect_url' => 'ru',
+    'link'         => 'l',
+] as $param => $suffix) {
+    $ar = $plain->unwrap('https://example.com/go/?' . $param . '=' . rawurlencode('https://news.example/' . $suffix));
+    expect("extract {$param}=", ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://news.example/' . $suffix, dump($ar));
+}
+
+$ar = $plain->unwrap('https://example.com/go/?to=_blank&url=' . rawurlencode('https://news.example/fallback'));
+expect('skip invalid to= then use url=', ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://news.example/fallback', dump($ar));
+
+$ar = $plain->unwrap('https://example.com/a?id=9&gclid=1&fbclid=2&ysclid=3&_openstat=4&from=tg&eref=x&ref=y&ref_src=z');
+expect(
+    'strip remaining tracking keep id',
+    ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://example.com/a?id=9',
+    dump($ar)
+);
+
+expect('www shortener is wrapper', $plain->looks_like_redirect_wrapper('https://www.bit.ly/abc'));
+expect('t.co is wrapper', $plain->looks_like_redirect_wrapper('https://t.co/x'));
+expect('/click/ is wrapper', $plain->looks_like_redirect_wrapper('https://example.com/click/abc'));
+expect('/outgoing is not wrapper', ! $plain->looks_like_redirect_wrapper('https://example.com/outgoing/x'));
+expect('/go-to-market is not wrapper', ! $plain->looks_like_redirect_wrapper('https://example.com/go-to-market'));
+
+$ar = $plain->unwrap('https://example.com/news/hello?from=rss&ref=tw');
+expect('strip from and ref', ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://example.com/news/hello', dump($ar));
+
+$ar = $plain->unwrap('https://8.8.8.8/dns');
+expect('public IP allowed', ! empty($ar['ok']) && empty($ar['changed']), dump($ar));
+
+$http = new Unwrapper(redirect_client([
+    'https://go.example/out/js' => [ 'code' => 302, 'location' => 'javascript:alert(1)' ],
+]));
+$ar = $http->unwrap('https://go.example/out/js');
+expect('redirect to javascript: rejected', empty($ar['ok']) || ! str_contains((string) ($ar['original'] ?? ''), 'javascript:'), dump($ar));
+
+$http = new Unwrapper(redirect_client([
+    'https://go.example/out/3' => [ 'code' => 302, 'location' => 'https://go.example/out/4' ],
+    'https://go.example/out/4' => [ 'code' => 302, 'location' => 'https://go.example/out/5' ],
+    'https://go.example/out/5' => [ 'code' => 302, 'location' => 'https://news.example/after-three' ],
+]));
+$ar = $http->unwrap('https://go.example/out/3');
+expect(
+    'max 3 redirect hops',
+    ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://news.example/after-three',
+    dump($ar)
+);
 
 echo "\n{$passed} passed, {$failed} failed\n";
 exit($failed === 0 ? 0 : 1);

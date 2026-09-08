@@ -44,6 +44,10 @@
 	margin-top: 8px;
 }
 
+.wp-link-input .ctl-wplink-inline {
+	margin-left: 6px;
+}
+
 #wp-link .ctl-wplink-status {
 	display: inline-block;
 	margin-left: 8px;

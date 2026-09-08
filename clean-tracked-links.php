@@ -3,7 +3,7 @@
  * Plugin Name:       Clean Tracked Links
  * Plugin URI:        https://krivoshein.site
  * Description:       Кнопка «На оригинал» в Gutenberg, классическом редакторе и встроенных WYSIWYG: подставляет исходный URL вместо трекинговой обёртки. Разработка: ИП Кривошеин А.С.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            ИП Кривошеин А.С.
@@ -45,6 +45,8 @@ add_action('wp_enqueue_editor', 'clean_tracked_links_enqueue_classic_assets');
 add_action('acf/input/admin_enqueue_scripts', 'clean_tracked_links_enqueue_classic_assets');
 add_filter('mce_external_plugins', 'clean_tracked_links_mce_plugin');
 add_filter('mce_buttons', 'clean_tracked_links_mce_buttons');
+add_filter('teeny_mce_buttons', 'clean_tracked_links_mce_buttons');
+add_filter('tiny_mce_before_init', 'clean_tracked_links_tiny_mce_before_init');
 
 /**
  * Shared REST settings for Gutenberg and classic scripts.
@@ -148,7 +150,7 @@ function clean_tracked_links_admin_maybe_classic(string $hook): void
  */
 function clean_tracked_links_enqueue_classic_assets(): void
 {
-    if (! current_user_can('edit_posts')) {
+    if (! current_user_can('edit_posts') && ! current_user_can('edit_pages')) {
         return;
     }
 
@@ -182,7 +184,7 @@ function clean_tracked_links_enqueue_classic_assets(): void
  */
 function clean_tracked_links_mce_plugin(array $plugins): array
 {
-    $plugins['clean_tracked_links'] = CLEAN_TRACKED_LINKS_URL . 'assets/classic.js?ver=' . CLEAN_TRACKED_LINKS_VERSION;
+    $plugins['clean_tracked_links'] = CLEAN_TRACKED_LINKS_URL . 'assets/tinymce-plugin.js?ver=' . CLEAN_TRACKED_LINKS_VERSION;
 
     return $plugins;
 }
@@ -204,6 +206,28 @@ function clean_tracked_links_mce_buttons(array $buttons): array
     array_splice($buttons, $index + 1, 0, 'clean_tracked_links');
 
     return $buttons;
+}
+
+/**
+ * Guarantee the plugin is in TinyMCE's plugins list (teeny/ACF included).
+ *
+ * @param array<string, mixed> $init
+ * @return array<string, mixed>
+ */
+function clean_tracked_links_tiny_mce_before_init(array $init): array
+{
+    $plugins = isset($init['plugins']) ? (string) $init['plugins'] : '';
+    if ($plugins === '') {
+        $init['plugins'] = 'clean_tracked_links';
+        return $init;
+    }
+    $parts = array_map('trim', explode(',', $plugins));
+    if (! in_array('clean_tracked_links', $parts, true)) {
+        $parts[] = 'clean_tracked_links';
+        $init['plugins'] = implode(',', $parts);
+    }
+
+    return $init;
 }
 
 add_filter('plugin_row_meta', 'clean_tracked_links_plugin_row_meta', 10, 2);

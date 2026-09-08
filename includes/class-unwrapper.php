@@ -155,7 +155,7 @@ final class Unwrapper
             $changed = true;
         }
 
-        if (! $changed && $this->looks_like_redirect_wrapper($current)) {
+        if ($this->looks_like_redirect_wrapper($current)) {
             $resolved = $this->follow_redirects($current);
             if (is_string($resolved) && $resolved !== '' && $this->is_allowed_url($resolved)) {
                 $resolved = $this->strip_tracking($resolved);

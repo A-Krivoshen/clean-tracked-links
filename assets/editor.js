@@ -1,6 +1,11 @@
 (function (root) {
 	'use strict';
 
+	if (root.cleanTrackedLinksGutenbergLoaded) {
+		return;
+	}
+	root.cleanTrackedLinksGutenbergLoaded = true;
+
 	var guard = root.cleanTrackedLinksUrlGuard;
 	if (!guard) {
 		return;
@@ -89,17 +94,46 @@
 		});
 	}
 
-	function hasLinkFormatAt(formats, index) {
+	function hasLinkFormatAt(formats, index, url) {
 		var list = formats && formats[index];
 		if (!list) {
 			return false;
 		}
 		for (var i = 0; i < list.length; i++) {
 			if (list[i] && list[i].type === 'core/link') {
-				return true;
+				if (!url) {
+					return true;
+				}
+				var href = list[i].attributes && list[i].attributes.url;
+				return href === url;
 			}
 		}
 		return false;
+	}
+
+	function blockLinkAttribute(block) {
+		if (!block || !block.name) {
+			return null;
+		}
+		var name = block.name;
+		if (
+			name === 'core/button' ||
+			name === 'core/navigation-link' ||
+			name === 'core/navigation-submenu'
+		) {
+			return 'url';
+		}
+		if (
+			name === 'core/image' ||
+			name === 'core/cover' ||
+			name === 'core/gallery' ||
+			name === 'core/file' ||
+			name === 'core/audio' ||
+			name === 'core/video'
+		) {
+			return 'href';
+		}
+		return null;
 	}
 
 	function copyAttributes(source) {
@@ -126,38 +160,41 @@
 		}
 
 		var formats = value.formats || [];
+		var currentUrl = active.attributes && active.attributes.url;
 		var start = typeof value.start === 'number' ? value.start : 0;
 		var end = typeof value.end === 'number' ? value.end : start;
+		var max = value.text ? value.text.length : formats.length;
 
-		while (start > 0 && hasLinkFormatAt(formats, start - 1)) {
+		while (start > 0 && hasLinkFormatAt(formats, start - 1, currentUrl)) {
 			start -= 1;
 		}
-		while (end < formats.length && hasLinkFormatAt(formats, end)) {
+		while (end < max && hasLinkFormatAt(formats, end, currentUrl)) {
 			end += 1;
 		}
 		if (end <= start) {
-			end = start + 1;
+			end = Math.min(start + 1, max);
 		}
 
 		var attrs = copyAttributes(active.attributes);
 		attrs.url = newUrl;
 
-		var next = applyFormat(Object.assign({}, value, { start: start, end: end }), {
-			type: 'core/link',
-			attributes: attrs,
-		});
-		onChange(next);
-		return true;
+		try {
+			var next = applyFormat(Object.assign({}, value, { start: start, end: end }), {
+				type: 'core/link',
+				attributes: attrs,
+			});
+			onChange(next);
+			return true;
+		} catch (e) {
+			return false;
+		}
 	}
 
 	function applyNewUrl(newUrl) {
-		if (latestRichText.value && latestRichText.onChange) {
-			if (applyToRichText(latestRichText.value, latestRichText.onChange, newUrl)) {
-				return true;
-			}
-		}
-
 		if (!wp.data || !wp.data.select || !wp.data.dispatch) {
+			if (latestRichText.value && latestRichText.onChange) {
+				return applyToRichText(latestRichText.value, latestRichText.onChange, newUrl);
+			}
 			return false;
 		}
 
@@ -170,6 +207,18 @@
 		var start = select.getSelectionStart && select.getSelectionStart();
 		var end = select.getSelectionEnd && select.getSelectionEnd();
 		var block = select.getSelectedBlock && select.getSelectedBlock();
+
+		if (
+			latestRichText.value &&
+			latestRichText.onChange &&
+			start &&
+			typeof latestRichText.value.start === 'number' &&
+			latestRichText.value.start === start.offset
+		) {
+			if (applyToRichText(latestRichText.value, latestRichText.onChange, newUrl)) {
+				return true;
+			}
+		}
 
 		if (block && start && start.clientId === block.clientId && start.attributeKey) {
 			var html = block.attributes[start.attributeKey];
@@ -194,9 +243,16 @@
 			}
 		}
 
-		if (block && block.attributes && typeof block.attributes.url === 'string') {
-			dispatch.updateBlockAttributes(block.clientId, { url: newUrl });
+		var linkAttr = blockLinkAttribute(block);
+		if (linkAttr && block.attributes && typeof block.attributes[linkAttr] === 'string') {
+			var patch = {};
+			patch[linkAttr] = newUrl;
+			dispatch.updateBlockAttributes(block.clientId, patch);
 			return true;
+		}
+
+		if (latestRichText.value && latestRichText.onChange) {
+			return applyToRichText(latestRichText.value, latestRichText.onChange, newUrl);
 		}
 
 		return false;
@@ -233,8 +289,9 @@
 			var block =
 				wp.data.select('core/block-editor').getSelectedBlock &&
 				wp.data.select('core/block-editor').getSelectedBlock();
-			if (block && block.attributes && typeof block.attributes.url === 'string') {
-				return block.attributes.url;
+			var attr = blockLinkAttribute(block);
+			if (attr && block.attributes && typeof block.attributes[attr] === 'string') {
+				return block.attributes[attr];
 			}
 		}
 		return readUrlFromPopover();

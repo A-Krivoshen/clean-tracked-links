@@ -75,6 +75,24 @@
 		return null;
 	}
 
+	function ipv4FromMapped(host) {
+		host = normalizeHost(host);
+		if (host.indexOf('::ffff:') !== 0) {
+			return null;
+		}
+		var rest = host.slice(7);
+		if (/^\d+\.\d+\.\d+\.\d+$/.test(rest)) {
+			return rest;
+		}
+		var hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i.exec(rest);
+		if (!hex) {
+			return null;
+		}
+		var hi = parseInt(hex[1], 16);
+		var lo = parseInt(hex[2], 16);
+		return [(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.');
+	}
+
 	function isBlockedIPv4(ip) {
 		var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
 		if (!m) {
@@ -118,6 +136,7 @@
 			host === '::1' ||
 			host === 'metadata' ||
 			host === 'metadata.google.internal' ||
+			host === 'metadata.google.com' ||
 			host === 'instance-data'
 		) {
 			return true;
@@ -126,7 +145,16 @@
 			return true;
 		}
 		if (host.indexOf('::ffff:') === 0) {
+			var mapped = ipv4FromMapped(host);
+			if (mapped) {
+				return isBlockedHost(mapped);
+			}
 			return isBlockedHost(host.slice(7));
+		}
+		if (host.indexOf(':') !== -1) {
+			if (host.indexOf('fe80:') === 0 || host.indexOf('fc') === 0 || host.indexOf('fd') === 0 || host.indexOf('ff') === 0) {
+				return true;
+			}
 		}
 		if (isBlockedIPv4(host)) {
 			return true;

@@ -78,5 +78,42 @@ expect(
 	guard.quickUnwrap('https://example.com/go/?to=http://2130706433/') === null
 );
 
+const extraBlocked = [
+	['http://0177.0.0.1/', 'octal'],
+	['http://0x7f.0.0.1/', 'dotted-hex'],
+	['http://127.0.1/', 'short 127.0.1'],
+	['http://0.0.0.0/', '0.0.0.0'],
+	['http://[::ffff:127.0.0.1]/', 'v4-mapped'],
+	['http://[fe80::1]/', 'ipv6-ll'],
+	['http://[fd00::1]/', 'ipv6-ula'],
+	['http://224.0.0.1/', 'multicast'],
+	['http://metadata.google.com/', 'gcp metadata.com'],
+	['http://instance-data/', 'ec2 alias'],
+	['http://foo.internal/', '.internal'],
+	['http://nas.lan/', '.lan'],
+	['http://files.corp/', '.corp'],
+	['http://localhost./', 'trailing-dot localhost'],
+	['  javascript:alert(1)', 'padded javascript'],
+	['intent:scan', 'intent'],
+];
+extraBlocked.forEach(function (pair) {
+	expect('js reject ' + pair[1], guard.isHttpUrl(pair[0]) === false, pair[0]);
+});
+
+expect(
+	'js dest= is server-only',
+	guard.quickUnwrap('https://example.com/go/?dest=' + encodeURIComponent('https://news.example/x')) === null
+);
+expect(
+	'js skip bad to= then use url=',
+	guard.quickUnwrap(
+		'https://example.com/go/?to=_blank&url=' + encodeURIComponent('https://news.example/ok')
+	) === 'https://news.example/ok'
+);
+expect(
+	'quickUnwrap to=fe80 is null',
+	guard.quickUnwrap('https://example.com/go/?to=' + encodeURIComponent('http://[fe80::1]/')) === null
+);
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed === 0 ? 0 : 1);
