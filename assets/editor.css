@@ -1,0 +1,29 @@
+.clean-tracked-links-holder {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.clean-tracked-links-unwrap-btn.components-button {
+	min-width: 36px;
+	height: 36px;
+	padding: 6px;
+	color: currentColor;
+}
+
+.clean-tracked-links-unwrap-btn.components-button svg {
+	width: 24px;
+	height: 24px;
+	fill: currentColor;
+}
+
+.clean-tracked-links-unwrap-btn.components-button.is-busy,
+.clean-tracked-links-unwrap-btn.components-button[disabled] {
+	opacity: 0.7;
+	pointer-events: none;
+}
+
+.block-editor-link-control__search-item-top .clean-tracked-links-unwrap-btn.components-button {
+	min-width: 32px;
+	height: 32px;
+}
