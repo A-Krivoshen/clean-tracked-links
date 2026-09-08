@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="440" viewBox="0 0 1200 440" role="img" aria-labelledby="title desc">
   <title id="title">Clean Tracked Links</title>
-  <desc id="desc">WordPress-плагин для Gutenberg: в панели ссылки кнопка «На оригинал» подставляет исходный URL. Пример: klerk.ru/go/ext/?to=… становится vedomosti.ru/business/articles/…</desc>
+  <desc id="desc">WordPress-плагин для Gutenberg: в панели ссылки кнопка «На оригинал» подставляет исходный URL. Пример: example.com/go/ext/?to=… становится news.example.org/article/…</desc>
 
   <rect width="1200" height="440" rx="26" fill="#f6f7f7"/>
   <rect x="1" y="1" width="1198" height="438" rx="25" fill="none" stroke="#dcdcde"/>
@@ -21,7 +21,7 @@
     <clipPath id="popover-url">
       <rect x="60" y="44" width="200" height="22"/>
     </clipPath>
-    <text clip-path="url(#popover-url)" x="60" y="64" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#646970">klerk.ru/go/ext/?to=…</text>
+    <text clip-path="url(#popover-url)" x="60" y="64" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#646970">example.com/go/ext/?to=…</text>
     <g transform="translate(268 30)" fill="none" stroke="#1e1e1e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M16 8l4 4-9 9H7v-4z"/>
       <path d="M13.5 8.5l3 3"/>
@@ -39,11 +39,11 @@
   <g id="proof" transform="translate(56 208)">
     <rect width="1088" height="188" rx="12" fill="#1e1e1e"/>
     <text x="28" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="700" letter-spacing="1.4" fill="#dba617">БЫЛО</text>
-    <text x="28" y="66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#f0c33c">klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2F…</text>
+    <text x="28" y="66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#f0c33c">example.com/go/ext/?to=https%3A%2F%2Fnews.example.org%2F…</text>
     <line x1="28" y1="88" x2="1060" y2="88" stroke="#3c434a"/>
     <circle cx="544" cy="88" r="16" fill="#2271b1"/>
     <path d="M538 83l-5 5 5 5v-3h6v-4h-6v-3zm12 0v3h-6v4h6v3l5-5-5-5z" fill="#ffffff"/>
     <text x="28" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="700" letter-spacing="1.4" fill="#1ed14b">СТАЛО</text>
-    <text x="28" y="160" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#e6f6eb">vedomosti.ru/business/articles/2026/07/06/1211353-nedorogoi-ikri…</text>
+    <text x="28" y="160" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#e6f6eb">news.example.org/article/hello</text>
   </g>
 </svg>

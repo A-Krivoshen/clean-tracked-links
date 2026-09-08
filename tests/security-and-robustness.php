@@ -116,16 +116,16 @@ function redirect_client(array $map): callable
 
 $plain = new Unwrapper();
 
-$klerk = 'https://www.klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2Fbusiness%2Farticles%2F2026%2F07%2F06%2F1211353-nedorogoi-ikri-mozhet-stat-menshe&entityId=1';
-$vedomosti = 'https://www.vedomosti.ru/business/articles/2026/07/06/1211353-nedorogoi-ikri-mozhet-stat-menshe';
+$wrap = 'https://example.com/go/ext/?to=https%3A%2F%2Fnews.example.org%2Farticle%2Fhello&entityId=1';
+$orig = 'https://news.example.org/article/hello';
 
 echo "== Robustness ==\n";
 
-$ar = $plain->unwrap($klerk);
-expect('A klerk to= vedomosti', ! empty($ar['ok']) && ! empty($ar['changed']) && ($ar['original'] ?? '') === $vedomosti, dump($ar));
+$ar = $plain->unwrap($wrap);
+expect('A to= unwrap', ! empty($ar['ok']) && ! empty($ar['changed']) && ($ar['original'] ?? '') === $orig, dump($ar));
 
-$ar = $plain->unwrap('https://www.klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2Fbusiness%2Farticles%2F2026%2F07%2F06%2F1211353-nedorogoi-ikri-mozhet-stat-menshe&entityId=123');
-expect('A2 klerk entityId=123', ! empty($ar['ok']) && ($ar['original'] ?? '') === $vedomosti, dump($ar));
+$ar = $plain->unwrap('https://example.com/go/ext/?to=https%3A%2F%2Fnews.example.org%2Farticle%2Fhello&entityId=123');
+expect('A2 entityId=123 dropped', ! empty($ar['ok']) && ($ar['original'] ?? '') === $orig, dump($ar));
 
 $ar = $plain->unwrap('https://example.com/news/hello');
 expect('B clean unchanged', ! empty($ar['ok']) && empty($ar['changed']) && ($ar['original'] ?? '') === 'https://example.com/news/hello', dump($ar));
@@ -143,7 +143,7 @@ expect(
 $ar = $plain->unwrap('https://example.com/news/hello?utm_source=tg#section');
 expect('C3 keep fragment', ! empty($ar['ok']) && ($ar['original'] ?? '') === 'https://example.com/news/hello#section', dump($ar));
 
-$ar = $plain->unwrap($vedomosti);
+$ar = $plain->unwrap($orig);
 expect('repeat click does not break', ! empty($ar['ok']) && empty($ar['changed']), dump($ar));
 
 $nested = 'https://tracker.example/out/?url=' . rawurlencode('https://wrap.example/go/?to=' . rawurlencode('https://news.example/a'));
