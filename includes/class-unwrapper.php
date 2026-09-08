@@ -52,11 +52,8 @@ final class Unwrapper
         'outbound',
         'exit',
         'offsite',
-        'track',
-        'tracking',
         'jump',
         'bridge',
-        'external',
         'leave-site',
     ];
 
@@ -79,10 +76,45 @@ final class Unwrapper
         'trib.al',
     ];
 
+    private const BLOCKED_HOST_SUFFIXES = [
+        '.localhost',
+        '.localdomain',
+        '.local',
+        '.internal',
+        '.lan',
+        '.home',
+        '.corp',
+    ];
+
+    private const BLOCKED_HOSTS = [
+        'localhost',
+        '0.0.0.0',
+        '0',
+        '::',
+        '::1',
+        'metadata',
+        'metadata.google.internal',
+        'metadata.google.com',
+        'instance-data',
+    ];
+
     private const MAX_UNWRAP_DEPTH = 3;
     private const MAX_REDIRECTS    = 3;
+    private const MAX_URL_LENGTH   = 2048;
     private const TIMEOUT          = 5;
     private const USER_AGENT       = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
+    /**
+     * Optional HTTP client for tests: fn(string $url): array|\WP_Error
+     *
+     * @var callable|null
+     */
+    private $http_client;
+
+    public function __construct(?callable $http_client = null)
+    {
+        $this->http_client = $http_client;
+    }
 
     /**
      * @return array{ok: bool, original?: string, changed?: bool, error?: string}
@@ -164,11 +196,15 @@ final class Unwrapper
     public function is_allowed_url(string $url): bool
     {
         $url = trim($url);
-        if ($url === '' || strlen($url) > 2048) {
+        if ($url === '' || strlen($url) > self::MAX_URL_LENGTH) {
             return false;
         }
 
-        if (preg_match('#^\s*(javascript|data|file|ftp|about|blob|vbscript):#i', $url)) {
+        if (preg_match('/[\x00-\x1f\x7f]/', $url)) {
+            return false;
+        }
+
+        if (preg_match('#^\s*(javascript|data|file|ftp|ftps|about|blob|vbscript|mailto|intent):#i', $url)) {
             return false;
         }
 
@@ -186,10 +222,8 @@ final class Unwrapper
             return false;
         }
 
-        $host = strtolower((string) $parts['host']);
-        $host = trim($host, '[]');
-
-        if ($this->is_blocked_host($host)) {
+        $host = $this->normalize_host((string) $parts['host']);
+        if ($host === '' || $this->is_blocked_host($host)) {
             return false;
         }
 
@@ -200,26 +234,150 @@ final class Unwrapper
         return true;
     }
 
+    private function normalize_host(string $host): string
+    {
+        $host = strtolower(trim($host));
+        $host = trim($host, '[]');
+        $host = rtrim($host, '.');
+
+        return $host;
+    }
+
     private function is_blocked_host(string $host): bool
     {
-        if ($host === '' || $host === 'localhost' || $host === '0.0.0.0' || $host === '::' || $host === '::1') {
+        $host = $this->normalize_host($host);
+        if ($host === '') {
             return true;
         }
 
-        if (str_ends_with($host, '.localhost') || str_ends_with($host, '.localdomain')) {
+        if (in_array($host, self::BLOCKED_HOSTS, true)) {
             return true;
         }
 
-        if (filter_var($host, FILTER_VALIDATE_IP)) {
-            return $this->is_blocked_ip($host);
+        foreach (self::BLOCKED_HOST_SUFFIXES as $suffix) {
+            if (str_ends_with($host, $suffix)) {
+                return true;
+            }
+        }
+
+        $ip = $this->host_as_ip($host);
+        if ($ip !== null) {
+            return $this->is_blocked_ip($ip);
         }
 
         return false;
     }
 
+    /**
+     * Turn a hostname into an IPv4/IPv6 string when it is a literal or encoded IP.
+     */
+    private function host_as_ip(string $host): ?string
+    {
+        $host = $this->normalize_host($host);
+
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            return $host;
+        }
+
+        if (preg_match('/^\d+$/', $host)) {
+            $n = (int) $host;
+            if ($n < 0 || $n > 4294967295) {
+                return null;
+            }
+
+            return long2ip($n);
+        }
+
+        if (preg_match('/^0x[0-9a-f]+$/i', $host)) {
+            $n = hexdec($host);
+            if ($n < 0 || $n > 4294967295) {
+                return null;
+            }
+
+            return long2ip((int) $n);
+        }
+
+        if (preg_match('/^[0-9a-fx.]+$/i', $host) && str_contains($host, '.')) {
+            $parts = explode('.', $host);
+            if (count($parts) >= 2 && count($parts) <= 4) {
+                $expanded = $this->expand_weird_ipv4($parts);
+                if ($expanded !== null) {
+                    return $expanded;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param list<string> $parts
+     */
+    private function expand_weird_ipv4(array $parts): ?string
+    {
+        $vals = [];
+        foreach ($parts as $part) {
+            if ($part === '') {
+                return null;
+            }
+            if (preg_match('/^0x[0-9a-f]+$/i', $part)) {
+                $vals[] = (int) hexdec($part);
+            } elseif (preg_match('/^0[0-7]+$/', $part)) {
+                $vals[] = (int) octdec($part);
+            } elseif (preg_match('/^\d+$/', $part)) {
+                $vals[] = (int) $part;
+            } else {
+                return null;
+            }
+        }
+
+        $count = count($vals);
+        if ($count === 4) {
+            foreach ($vals as $v) {
+                if ($v < 0 || $v > 255) {
+                    return null;
+                }
+            }
+
+            return sprintf('%d.%d.%d.%d', $vals[0], $vals[1], $vals[2], $vals[3]);
+        }
+
+        if ($count === 3) {
+            if ($vals[0] > 255 || $vals[1] > 255 || $vals[2] > 65535) {
+                return null;
+            }
+
+            return sprintf(
+                '%d.%d.%d.%d',
+                $vals[0],
+                $vals[1],
+                ($vals[2] >> 8) & 255,
+                $vals[2] & 255
+            );
+        }
+
+        if ($count === 2) {
+            if ($vals[0] > 255 || $vals[1] > 16777215) {
+                return null;
+            }
+
+            $tail = $vals[1];
+
+            return sprintf(
+                '%d.%d.%d.%d',
+                $vals[0],
+                ($tail >> 16) & 255,
+                ($tail >> 8) & 255,
+                $tail & 255
+            );
+        }
+
+        return null;
+    }
+
     private function is_blocked_ip(string $ip): bool
     {
-        $ip = strtolower(trim($ip, '[]'));
+        $ip = $this->normalize_host($ip);
 
         if (str_starts_with($ip, '::ffff:')) {
             $mapped = substr($ip, 7);
@@ -228,13 +386,56 @@ final class Unwrapper
             }
         }
 
+        $packed = @inet_pton($ip);
+        if (is_string($packed) && strlen($packed) === 16) {
+            $v4mapped = str_repeat("\x00", 10) . "\xff\xff";
+            if (str_starts_with($packed, $v4mapped)) {
+                $v4 = inet_ntop(substr($packed, 12));
+                if (is_string($v4)) {
+                    return $this->is_blocked_ip($v4);
+                }
+            }
+            if ($packed === inet_pton('::1') || $packed === inet_pton('::')) {
+                return true;
+            }
+            $b0 = ord($packed[0]);
+            $b1 = ord($packed[1]);
+            if ($b0 === 0xfe && ($b1 & 0xc0) === 0x80) {
+                return true;
+            }
+            if (($b0 & 0xfe) === 0xfc) {
+                return true;
+            }
+            if ($b0 === 0xff) {
+                return true;
+            }
+        }
+
         $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
         if (filter_var($ip, FILTER_VALIDATE_IP, $flags) === false) {
             return true;
         }
 
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-            if (preg_match('/^(::1|fe80:|fc|fd|ff)/i', $ip)) {
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $long = ip2long($ip);
+            if ($long === false) {
+                return true;
+            }
+            $a = ($long >> 24) & 255;
+            $b = ($long >> 16) & 255;
+            if ($a === 0 || $a === 127 || $a === 10 || $a >= 224) {
+                return true;
+            }
+            if ($a === 169 && $b === 254) {
+                return true;
+            }
+            if ($a === 172 && $b >= 16 && $b <= 31) {
+                return true;
+            }
+            if ($a === 192 && $b === 168) {
+                return true;
+            }
+            if ($a === 100 && $b >= 64 && $b <= 127) {
                 return true;
             }
         }
@@ -331,14 +532,14 @@ final class Unwrapper
         return $scheme . '://' . $host . $port . $path . ($qs !== '' ? '?' . $qs : '') . $fragment;
     }
 
-    private function looks_like_redirect_wrapper(string $url): bool
+    public function looks_like_redirect_wrapper(string $url): bool
     {
         $parts = $this->parse_url($url);
         if (! is_array($parts)) {
             return false;
         }
 
-        $host = strtolower((string) ($parts['host'] ?? ''));
+        $host = $this->normalize_host((string) ($parts['host'] ?? ''));
         $host = preg_replace('/^www\./', '', $host) ?? $host;
         if (in_array($host, self::SHORTENER_HOSTS, true)) {
             return true;
@@ -358,7 +559,7 @@ final class Unwrapper
 
     private function follow_redirects(string $url): ?string
     {
-        if (! function_exists('wp_remote_request')) {
+        if ($this->http_client === null && ! function_exists('wp_remote_request')) {
             return null;
         }
 
@@ -368,6 +569,10 @@ final class Unwrapper
 
         for ($i = 0; $i < self::MAX_REDIRECTS; $i++) {
             if (! $this->is_allowed_url($current)) {
+                return null;
+            }
+
+            if ($this->http_client === null && $this->resolves_to_blocked($current)) {
                 return null;
             }
 
@@ -389,9 +594,16 @@ final class Unwrapper
             }
             $location = is_string($location) ? trim($location) : '';
 
+            if ($location !== '' && preg_match('/[\x00-\x1f\x7f]/', $location)) {
+                return null;
+            }
+
             if ($location !== '' && $code >= 300 && $code < 400) {
                 $next = $this->absolutize($current, $location);
-                if (! $this->is_allowed_url($next)) {
+                if ($next === '' || ! $this->is_allowed_url($next)) {
+                    return null;
+                }
+                if ($this->http_client === null && $this->resolves_to_blocked($next)) {
                     return null;
                 }
                 $current = $next;
@@ -405,11 +617,58 @@ final class Unwrapper
         return $final;
     }
 
+    private function resolves_to_blocked(string $url): bool
+    {
+        $parts = $this->parse_url($url);
+        if (! is_array($parts) || empty($parts['host'])) {
+            return true;
+        }
+
+        $host = $this->normalize_host((string) $parts['host']);
+        $as_ip = $this->host_as_ip($host);
+        if ($as_ip !== null) {
+            return $this->is_blocked_ip($as_ip);
+        }
+
+        $ips = [];
+        $v4  = @gethostbynamel($host);
+        if (is_array($v4)) {
+            $ips = array_merge($ips, $v4);
+        }
+
+        if (function_exists('dns_get_record')) {
+            $aaaa = @dns_get_record($host, DNS_AAAA);
+            if (is_array($aaaa)) {
+                foreach ($aaaa as $row) {
+                    if (! empty($row['ipv6']) && is_string($row['ipv6'])) {
+                        $ips[] = $row['ipv6'];
+                    }
+                }
+            }
+        }
+
+        if ($ips === []) {
+            return true;
+        }
+
+        foreach ($ips as $ip) {
+            if ($this->is_blocked_ip((string) $ip)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * @return array<string, mixed>|\WP_Error
      */
     private function request_headers(string $url)
     {
+        if ($this->http_client !== null) {
+            return ($this->http_client)($url);
+        }
+
         $args = [
             'timeout'             => self::TIMEOUT,
             'redirection'         => 0,
@@ -450,6 +709,10 @@ final class Unwrapper
 
         if (preg_match('#^https?://#i', $location)) {
             return $location;
+        }
+
+        if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $location)) {
+            return '';
         }
 
         $base_parts = $this->parse_url($base);
