@@ -21,7 +21,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('CLEAN_TRACKED_LINKS_VERSION', '1.1.0');
+define('CLEAN_TRACKED_LINKS_VERSION', '1.1.1');
 define('CLEAN_TRACKED_LINKS_FILE', __FILE__);
 define('CLEAN_TRACKED_LINKS_DIR', plugin_dir_path(__FILE__));
 define('CLEAN_TRACKED_LINKS_URL', plugin_dir_url(__FILE__));
