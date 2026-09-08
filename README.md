@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="Clean Tracked Links: в панели ссылки Gutenberg кнопка «На оригинал» подставляет исходный URL. Пример: example.com/go/ext/?to=https%3A%2F%2Fnews.example.org… становится news.example.org/article/…">
+  <img src="./assets/readme/hero.svg" width="100%" alt="Clean Tracked Links: в панели ссылки Gutenberg кнопка «На оригинал» подставляет исходный URL. Пример: klerk.ru/go/ext/?to=https%3A%2F%2Fvedomosti… становится vedomosti.ru/business/articles/…">
 </p>
 
 WordPress-плагин для редактора. Кнопка **не из ядра WordPress** — плагин сам добавляет её в popover уже существующей ссылки.
@@ -14,7 +14,7 @@ WordPress-плагин для редактора. Кнопка **не из яд�
 
 | Было | Стало |
 | --- | --- |
-| `https://example.com/go/ext/?to=https%3A%2F%2Fnews.example.org%2Farticle%2Fhello&entityId=123` | `https://news.example.org/article/hello` |
+| `https://www.klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2Fbusiness%2Farticles%2F2026%2F07%2F06%2F1211353-nedorogoi-ikri-mozhet-stat-menshe&entityId=123` | `https://www.vedomosti.ru/business/articles/2026/07/06/1211353-nedorogoi-ikri-mozhet-stat-menshe` |
 | `https://example.com/news/hello?utm_source=tg&yclid=123` | `https://example.com/news/hello` |
 | `https://example.com/news/hello` | без изменения |
 

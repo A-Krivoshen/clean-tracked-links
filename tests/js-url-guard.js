@@ -16,12 +16,13 @@ function expect(name, ok, detail) {
 	console.log('FAIL ' + name + (detail ? ' — ' + detail : ''));
 }
 
-const wrap =
-	'https://example.com/go/ext/?to=https%3A%2F%2Fnews.example.org%2Farticle%2Fhello&entityId=1';
-const orig = 'https://news.example.org/article/hello';
+const klerk =
+	'https://www.klerk.ru/go/ext/?to=https%3A%2F%2Fwww.vedomosti.ru%2Fbusiness%2Farticles%2F2026%2F07%2F06%2F1211353-nedorogoi-ikri-mozhet-stat-menshe&entityId=1';
+const vedomosti =
+	'https://www.vedomosti.ru/business/articles/2026/07/06/1211353-nedorogoi-ikri-mozhet-stat-menshe';
 
 console.log('== JS robustness ==');
-expect('quickUnwrap to=', guard.quickUnwrap(wrap) === orig, String(guard.quickUnwrap(wrap)));
+expect('quickUnwrap klerk', guard.quickUnwrap(klerk) === vedomosti, String(guard.quickUnwrap(klerk)));
 expect('quickUnwrap clean is null', guard.quickUnwrap('https://example.com/news/hello') === null);
 expect(
 	'quickUnwrap nested to/url',
